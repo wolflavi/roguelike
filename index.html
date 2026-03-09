@@ -15,7 +15,6 @@ body{
 #game{
  font-size:20px;
  line-height:1.1;
- user-select:none;
 }
 </style>
 
@@ -28,13 +27,21 @@ body{
 
 <script>
 
-const WIDTH = 60
-const HEIGHT = 30
-const ROOM_COUNT = 8
+const WIDTH=60
+const HEIGHT=30
+const ROOM_COUNT=8
+const MONSTER_COUNT=6
 
 let map=[]
 let rooms=[]
-let player={x:0,y:0}
+let monsters=[]
+let stairs={x:0,y:0}
+
+let player={
+ x:0,
+ y:0,
+ hp:10
+}
 
 function createEmptyMap(){
 
@@ -57,13 +64,9 @@ function createEmptyMap(){
 function createRoom(x,y,w,h){
 
  for(let i=y;i<y+h;i++){
-
   for(let j=x;j<x+w;j++){
-
    map[i][j]="."
-
   }
-
  }
 
 }
@@ -71,9 +74,7 @@ function createRoom(x,y,w,h){
 function createHTunnel(x1,x2,y){
 
  for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++){
-
   map[y][x]="."
-
  }
 
 }
@@ -81,9 +82,7 @@ function createHTunnel(x1,x2,y){
 function createVTunnel(y1,y2,x){
 
  for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++){
-
   map[y][x]="."
-
  }
 
 }
@@ -91,8 +90,8 @@ function createVTunnel(y1,y2,x){
 function generateDungeon(){
 
  createEmptyMap()
-
  rooms=[]
+ monsters=[]
 
  for(let r=0;r<ROOM_COUNT;r++){
 
@@ -104,7 +103,7 @@ function generateDungeon(){
 
   createRoom(x,y,w,h)
 
-  let newRoom={
+  let room={
    x:x,
    y:y,
    w:w,
@@ -118,25 +117,39 @@ function generateDungeon(){
    let prev=rooms[rooms.length-1]
 
    if(Math.random()<0.5){
-
-    createHTunnel(prev.cx,newRoom.cx,prev.cy)
-    createVTunnel(prev.cy,newRoom.cy,newRoom.cx)
-
+    createHTunnel(prev.cx,room.cx,prev.cy)
+    createVTunnel(prev.cy,room.cy,room.cx)
    }else{
-
-    createVTunnel(prev.cy,newRoom.cy,prev.cx)
-    createHTunnel(prev.cx,newRoom.cx,newRoom.cy)
-
+    createVTunnel(prev.cy,room.cy,prev.cx)
+    createHTunnel(prev.cx,room.cx,room.cy)
    }
 
   }
 
-  rooms.push(newRoom)
+  rooms.push(room)
 
  }
 
  player.x=rooms[0].cx
  player.y=rooms[0].cy
+
+ let last=rooms[rooms.length-1]
+
+ stairs.x=last.cx
+ stairs.y=last.cy
+
+ for(let i=0;i<MONSTER_COUNT;i++){
+
+  let room=rooms[Math.floor(Math.random()*rooms.length)]
+
+  monsters.push({
+   x:room.cx,
+   y:room.cy,
+   hp:3,
+   char:"g"
+  })
+
+ }
 
 }
 
@@ -149,12 +162,24 @@ function draw(){
   for(let x=0;x<WIDTH;x++){
 
    if(player.x===x && player.y===y){
-
     out+="@"
+   }
 
-   }else{
+   else if(stairs.x===x && stairs.y===y){
+    out+=">"
+   }
 
-    out+=map[y][x]
+   else{
+
+    let m=monsters.find(m=>m.x===x && m.y===y)
+
+    if(m){
+     out+=m.char
+    }
+
+    else{
+     out+=map[y][x]
+    }
 
    }
 
@@ -164,7 +189,15 @@ function draw(){
 
  }
 
+ out+="\nHP: "+player.hp
+
  document.getElementById("game").textContent=out
+
+}
+
+function monsterAt(x,y){
+
+ return monsters.find(m=>m.x===x && m.y===y)
 
 }
 
@@ -173,14 +206,61 @@ function move(dx,dy){
  let nx=player.x+dx
  let ny=player.y+dy
 
- if(map[ny][nx]==="."){
+ let monster=monsterAt(nx,ny)
+
+ if(monster){
+
+  monster.hp--
+
+  if(monster.hp<=0){
+   monsters=monsters.filter(m=>m!==monster)
+  }
+
+ }
+
+ else if(map[ny][nx]==="."){
 
   player.x=nx
   player.y=ny
 
  }
 
+ if(player.x===stairs.x && player.y===stairs.y){
+
+  generateDungeon()
+
+ }
+
+ monstersTurn()
+
  draw()
+
+}
+
+function monstersTurn(){
+
+ for(let m of monsters){
+
+  let dx=Math.sign(player.x-m.x)
+  let dy=Math.sign(player.y-m.y)
+
+  let nx=m.x+dx
+  let ny=m.y+dy
+
+  if(player.x===nx && player.y===ny){
+
+   player.hp--
+
+  }
+
+  else if(map[ny][nx]==="." && !monsterAt(nx,ny)){
+
+   m.x=nx
+   m.y=ny
+
+  }
+
+ }
 
 }
 
