@@ -31,8 +31,10 @@ const WIDTH=60
 const HEIGHT=30
 const ROOM_COUNT=8
 const MONSTER_COUNT=6
+const VISION_RADIUS=8
 
 let map=[]
+let seen=[]
 let rooms=[]
 let monsters=[]
 let stairs={x:0,y:0}
@@ -46,14 +48,17 @@ let player={
 function createEmptyMap(){
 
  map=[]
+ seen=[]
 
  for(let y=0;y<HEIGHT;y++){
 
   map[y]=[]
+  seen[y]=[]
 
   for(let x=0;x<WIDTH;x++){
 
    map[y][x]="#"
+   seen[y][x]=false
 
   }
 
@@ -153,6 +158,18 @@ function generateDungeon(){
 
 }
 
+function distance(x1,y1,x2,y2){
+
+ return Math.sqrt((x1-x2)**2+(y1-y2)**2)
+
+}
+
+function monsterAt(x,y){
+
+ return monsters.find(m=>m.x===x && m.y===y)
+
+}
+
 function draw(){
 
  let out=""
@@ -161,25 +178,44 @@ function draw(){
 
   for(let x=0;x<WIDTH;x++){
 
-   if(player.x===x && player.y===y){
-    out+="@"
+   let visible=distance(player.x,player.y,x,y)<=VISION_RADIUS
+
+   if(visible) seen[y][x]=true
+
+   if(!seen[y][x]){
+
+    out+=" "
+
    }
 
-   else if(stairs.x===x && stairs.y===y){
-    out+=">"
+   else if(visible){
+
+    if(player.x===x && player.y===y){
+     out+="@"
+    }
+
+    else if(stairs.x===x && stairs.y===y){
+     out+=">"
+    }
+
+    else{
+
+     let m=monsterAt(x,y)
+
+     if(m){
+      out+=m.char
+     }
+     else{
+      out+=map[y][x]
+     }
+
+    }
+
    }
 
    else{
 
-    let m=monsters.find(m=>m.x===x && m.y===y)
-
-    if(m){
-     out+=m.char
-    }
-
-    else{
-     out+=map[y][x]
-    }
+    out+=map[y][x]
 
    }
 
@@ -192,12 +228,6 @@ function draw(){
  out+="\nHP: "+player.hp
 
  document.getElementById("game").textContent=out
-
-}
-
-function monsterAt(x,y){
-
- return monsters.find(m=>m.x===x && m.y===y)
 
 }
 
@@ -232,7 +262,6 @@ function move(dx,dy){
  }
 
  monstersTurn()
-
  draw()
 
 }
